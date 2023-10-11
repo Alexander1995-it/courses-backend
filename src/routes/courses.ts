@@ -3,6 +3,7 @@ import express, { Response } from "express";
 import { CreateCourseModel } from "../models/CreateCourseModel";
 import { dbType } from "../db/db";
 import { HTTP_STATUSES } from "./utils";
+import { coursesRepository } from "../repository/courses-repository";
 
 export type CourseType = {
   id: number;
@@ -15,22 +16,17 @@ export const getCoursesRoutes = (db: dbType) => {
   coursesRouter.get(
     "/",
     (req: RequestWithQuery<{ title: string }>, res: Response<CourseType[]>) => {
-      let courses = db.courses;
-      if (req.query.title) {
-        courses = courses.filter((el) => {
-          return el.title.indexOf(req.query.title) > -1;
-        });
-      }
+      let courses = coursesRepository.fountCourses(req.query.title);
       res.json(courses);
     },
   );
 
   coursesRouter.get("/:id", (req: RequestWithParams<{ id: string }>, res) => {
-    const fountCourses = db.courses.find((el) => el.id === +req.params.id);
-    if (!fountCourses) {
+    const course = coursesRepository.fountCourseById(+req.params.id);
+    if (!course) {
       res.sendStatus(404);
     } else {
-      res.json(fountCourses);
+      res.json(course);
     }
   });
 
@@ -39,11 +35,13 @@ export const getCoursesRoutes = (db: dbType) => {
       res.sendStatus(HTTP_STATUSES.BAD_REQUEST_400);
       return;
     }
-    const fountCourses = db.courses.find((el) => el.id === +req.params.id);
-    if (!fountCourses) {
+    const updatedCourse = coursesRepository.updateCourse(
+      +req.params.id,
+      req.body.title,
+    );
+    if (!updatedCourse) {
       res.sendStatus(404);
     } else {
-      fountCourses.title = req.body.title;
       res.sendStatus(HTTP_STATUSES.NO_CONTENT_204);
     }
   });
@@ -51,9 +49,8 @@ export const getCoursesRoutes = (db: dbType) => {
   coursesRouter.delete(
     "/:id",
     (req: RequestWithParams<{ id: string }>, res) => {
-      const fountCourses = db.courses.filter((el) => el.id !== +req.params.id);
-      db.courses = fountCourses;
-      if (!fountCourses) {
+      const courses = coursesRepository.removeCourse(+req.params.id);
+      if (!courses) {
         res.sendStatus(HTTP_STATUSES.NOT_FOUNT_404);
       } else {
         res.json(db.courses);
@@ -68,12 +65,8 @@ export const getCoursesRoutes = (db: dbType) => {
         res.sendStatus(HTTP_STATUSES.BAD_REQUEST_400);
         return;
       }
-      const createdCourse = {
-        id: +new Date(),
-        title: req.body.title,
-      };
-      db.courses.push(createdCourse);
-      res.status(201).json(createdCourse);
+      const addedCourse = coursesRepository.addCourse(req.body.title);
+      res.status(201).json(addedCourse);
     },
   );
 

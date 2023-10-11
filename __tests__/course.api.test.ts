@@ -1,7 +1,6 @@
 import request from "supertest";
 
 import { app } from "../src/app";
-import { Express } from "express";
 import { HTTP_STATUSES } from "../src/routes/utils";
 
 describe("/courses", () => {
@@ -54,7 +53,9 @@ describe("/courses", () => {
       .delete(`/courses/` + createCourse.id)
       .send([])
       .expect(200, []);
+    await request(app)
+      .delete(`/courses/` + 1000)
+      .send([])
+      .expect(404);
   });
 });
-
-export const addTestsRoutes = (app: Express) => {};
