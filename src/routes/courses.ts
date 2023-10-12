@@ -4,11 +4,18 @@ import { CreateCourseModel } from "../models/CreateCourseModel";
 import { dbType } from "../db/db";
 import { HTTP_STATUSES } from "./utils";
 import { coursesRepository } from "../repository/courses-repository";
+import { body } from "express-validator";
+import { InputValidationMiddleware } from "../middlewares/input-validation-middleware";
 
 export type CourseType = {
   id: number;
   title: string;
 };
+
+const titleValidation = body("title")
+  .trim()
+  .isLength({ min: 3, max: 10 })
+  .withMessage("Title length should be from 3 to 10 symbols");
 
 export const getCoursesRoutes = (db: dbType) => {
   const coursesRouter = express.Router();
@@ -30,21 +37,26 @@ export const getCoursesRoutes = (db: dbType) => {
     }
   });
 
-  coursesRouter.put("/:id", (req: RequestWithParams<{ id: string }>, res) => {
-    if (!req.body.title) {
-      res.sendStatus(HTTP_STATUSES.BAD_REQUEST_400);
-      return;
-    }
-    const updatedCourse = coursesRepository.updateCourse(
-      +req.params.id,
-      req.body.title,
-    );
-    if (!updatedCourse) {
-      res.sendStatus(404);
-    } else {
-      res.sendStatus(HTTP_STATUSES.NO_CONTENT_204);
-    }
-  });
+  coursesRouter.put(
+    "/:id",
+    titleValidation,
+    InputValidationMiddleware,
+    (req: RequestWithParams<{ id: string }>, res) => {
+      if (!req.body.title) {
+        res.sendStatus(HTTP_STATUSES.BAD_REQUEST_400);
+        return;
+      }
+      const updatedCourse = coursesRepository.updateCourse(
+        +req.params.id,
+        req.body.title,
+      );
+      if (!updatedCourse) {
+        res.sendStatus(404);
+      } else {
+        res.sendStatus(HTTP_STATUSES.NO_CONTENT_204);
+      }
+    },
+  );
 
   coursesRouter.delete(
     "/:id",
@@ -60,9 +72,17 @@ export const getCoursesRoutes = (db: dbType) => {
 
   coursesRouter.post(
     "/",
-    (req: RequestWithBody<CreateCourseModel>, res: Response<CourseType>) => {
-      if (!req.body.title) {
-        res.sendStatus(HTTP_STATUSES.BAD_REQUEST_400);
+    titleValidation,
+    InputValidationMiddleware,
+
+    (
+      req: RequestWithBody<CreateCourseModel>,
+      res: Response<CourseType | { message: string } | { errors: any }>,
+    ) => {
+      if (!req.body.title.trim()) {
+        res
+          .status(HTTP_STATUSES.BAD_REQUEST_400)
+          .send({ message: "title is required" });
         return;
       }
       const addedCourse = coursesRepository.addCourse(req.body.title);
